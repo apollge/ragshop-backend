@@ -1,15 +1,26 @@
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
-const { randomBytes } = require("crypto");
-const { promisify } = require("util");
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const { randomBytes } = require('crypto');
+const { promisify } = require('util');
+const { transport, makeAnEmail } = require('../mail');
 
 const Mutations = {
-  // TODO: Check if user is logged in
-
   async createItem(parent, args, ctx, info) {
+    if (!ctx.request.userId) {
+      throw new Error(`You must be logged in to that!`);
+    }
+
     const item = await ctx.db.mutation.createItem(
       {
-        data: { ...args },
+        data: {
+          // Connect Item to User
+          user: {
+            connect: {
+              id: ctx.request.userId,
+            },
+          },
+          ...args,
+        },
       },
       info
     );
@@ -42,7 +53,7 @@ const Mutations = {
     // Find the item
     const item = await ctx.db.query.item({ where }, `{ id title}`);
 
-    // Check if the own the item, permission
+    // Check if they own the item, permission
     // TODO
 
     // Delete item
@@ -62,7 +73,7 @@ const Mutations = {
         data: {
           ...args,
           password,
-          permissions: { set: ["USER"] },
+          permissions: { set: ['USER'] },
         },
       },
       info
@@ -72,7 +83,7 @@ const Mutations = {
     const token = jwt.sign({ userId: user.id }, process.env.APP_SECRET);
 
     // Set jwt as a token on the response
-    ctx.response.cookie("token", token, {
+    ctx.response.cookie('token', token, {
       httpOnly: true,
       maxAge: 1000 * 60 * 60 * 24,
     });
@@ -100,7 +111,7 @@ const Mutations = {
     const token = jwt.sign({ userId: user.id }, process.env.APP_SECRET);
 
     // Set cookie with token
-    ctx.response.cookie("token", token, {
+    ctx.response.cookie('token', token, {
       httpOnly: true,
       maxAge: 1000 * 60 * 60 * 24,
     });
@@ -110,8 +121,8 @@ const Mutations = {
   },
 
   signout(parent, args, ctx, info) {
-    ctx.response.clearCookie("token");
-    return { message: "Signed out." };
+    ctx.response.clearCookie('token');
+    return { message: 'Signed out.' };
   },
 
   async requestReset(parent, args, ctx, info) {
@@ -124,16 +135,27 @@ const Mutations = {
 
     // Set reset token and expiry
     const randomBytesPromisified = promisify(randomBytes);
-    const resetToken = (await randomBytesPromisified(20)).toString("hex");
+    const resetToken = (await randomBytesPromisified(20)).toString('hex');
     const resetTokenExpiry = Date.now() + 3600000;
-    const res = await ctx.db.mutation.updateUser({
+
+    await ctx.db.mutation.updateUser({
       where: { email: args.email },
       data: { resetToken, resetTokenExpiry },
     });
 
-    console.log(res);
+    await transport.sendMail({
+      from: 'togz@ngiaw.com',
+      to: user.email,
+      subject: 'You Password Reset Token',
+      html: makeAnEmail(`You Password Reset Token is here!
+      <br />
+      <br />
+      <a href="${
+        process.env.FRONTEND_URL
+      }/reset?resetToken=${resetToken}">Click here to reset</a>`),
+    });
 
-    return { message: "Reset Token Sent" };
+    return { message: 'Reset Token Sent' };
   },
 
   async resetPassword(parent, args, ctx, info) {
@@ -165,7 +187,7 @@ const Mutations = {
     });
 
     const token = jwt.sign({ userId: updatedUser.id }, process.env.APP_SECRET);
-    ctx.response.cookie("token", token, {
+    ctx.response.cookie('token', token, {
       httpOnly: true,
       maxAge: 1000 * 60 * 60 * 24,
     });
