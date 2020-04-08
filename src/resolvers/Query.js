@@ -25,7 +25,7 @@ const Query = {
 
     hasPermission(ctx.request.user, ['ADMIN', 'PERMISSIONUPDATE']);
 
-    return await ctx.db.query.users({}, info);
+    return ctx.db.query.users({}, info);
   },
 };
 

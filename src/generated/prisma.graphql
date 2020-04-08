@@ -1,5 +1,5 @@
 # source: https://us1.prisma.sh/togz-ngiaw/ragshop/dev
-# timestamp: Tue Apr 07 2020 15:30:46 GMT+0800 (Philippine Standard Time)
+# timestamp: Wed Apr 08 2020 12:13:23 GMT+0800 (Philippine Standard Time)
 
 type AggregateItem {
   count: Int!
@@ -479,7 +479,7 @@ enum Permission {
   ITEMCREATE
   ITEMUPDATE
   ITEMDELETE
-  PERMISSIONPUDATE
+  PERMISSIONUPDATE
 }
 
 type Query {
