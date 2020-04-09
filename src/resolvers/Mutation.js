@@ -236,6 +236,69 @@ const Mutations = {
       info
     );
   },
+
+  async addToCart(parent, args, ctx, info) {
+    const { userId } = ctx.request;
+
+    const [existingCartItem] = await ctx.db.query.cartItems({
+      where: {
+        user: { id: userId },
+        item: { id: args.id },
+      },
+    });
+
+    if (existingCartItem) {
+      return ctx.db.mutation.updateCartItem(
+        {
+          data: { quantity: existingCartItem.quantity + 1 },
+          where: { id: existingCartItem.id },
+        },
+        info
+      );
+    }
+
+    return ctx.db.mutation.createCartItem(
+      {
+        data: {
+          item: {
+            connect: { id: args.id },
+          },
+          user: {
+            connect: { id: userId },
+          },
+        },
+      },
+      info
+    );
+  },
+
+  async removeFromCart(parents, args, ctx, info) {
+    const cartItem = await ctx.db.query.cartItem(
+      {
+        where: {
+          id: args.id,
+        },
+      },
+      `{id, user { id }}`
+    );
+
+    if (!cartItem) {
+      throw new Error('No CartItem Found');
+    }
+
+    if (cartItem.user.id !== ctx.request.userId) {
+      throw new Error('You do not have permission to delete this item.');
+    }
+
+    return ctx.db.mutation.deleteCartItem(
+      {
+        where: {
+          id: args.id,
+        },
+      },
+      info
+    );
+  },
 };
 
 module.exports = Mutations;
